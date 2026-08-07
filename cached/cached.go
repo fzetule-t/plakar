@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -46,6 +47,9 @@ var (
 )
 
 func rebuildStateRequest(ctx *appcontext.AppContext, req *RequestPkt) (int, error) {
+	log.Printf("start rebuildStateRequest")
+	start := time.Now()
+
 	client, err := newClient(ctx, filepath.Join(ctx.CacheDir, "cached.sock"), false)
 	if err != nil {
 		return 1, err
@@ -58,7 +62,7 @@ func rebuildStateRequest(ctx *appcontext.AppContext, req *RequestPkt) (int, erro
 
 	response := &ResponsePkt{}
 	for {
-		if err := client.dec.Decode(response); err != nil {
+		if err := client.dec.Decode(response); err != nil { // fze This takes time
 			if err == io.EOF {
 				break
 			}
@@ -73,10 +77,34 @@ func rebuildStateRequest(ctx *appcontext.AppContext, req *RequestPkt) (int, erro
 			err = fmt.Errorf("%s", response.Err)
 		}
 
+		cacheSize, sizeErr := getDirSize(ctx.CacheDir)
+		if sizeErr != nil {
+			log.Printf("end rebuildStateRequest in %s, failed to get cache size: %v", time.Since(start), sizeErr)
+		} else {
+			log.Printf("end rebuildStateRequest in %s, cache size: %d Mib", time.Since(start), cacheSize)
+		}
+
 		return response.ExitCode, err
 	}
 
+	log.Printf("end rebuildStateRequest in %s", time.Since(start))
 	return 0, nil
+}
+
+func getDirSize(path string) (int64, error) {
+	var size int64
+
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return nil
+	})
+
+	return size / (1024 * 1024), err
 }
 
 func newClient(ctx *appcontext.AppContext, socketPath string, ignoreVersion bool) (*Client, error) {
@@ -140,7 +168,7 @@ func newClient(ctx *appcontext.AppContext, socketPath string, ignoreVersion bool
 			// Cached is daemonized, so we can, and need to wait for the return
 			// of the direct child to avoid zombies.
 			// The grand children will get reparented to PID 0 as a daemon and
-			// will be reaped by PID 0 avoiding zonmbies.
+			// will be reaped by PID 0 avoiding zombies.
 			if err := plakar.Run(); err != nil {
 				return nil, fmt.Errorf("failed to start cached: %w", err)
 			}
@@ -181,7 +209,6 @@ func (c *Client) handshake(ignoreVersion bool) error {
 	if !ignoreVersion && !slices.Equal(ourvers, cachedvers) {
 		return fmt.Errorf("%w (%v)", ErrWrongVersion, string(cachedvers))
 	}
-
 	return nil
 }
 
