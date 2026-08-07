@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -46,6 +47,7 @@ var (
 )
 
 func rebuildStateRequest(ctx *appcontext.AppContext, req *RequestPkt) (int, error) {
+	log.Printf("start rebuildStateRequest")
 	client, err := newClient(ctx, filepath.Join(ctx.CacheDir, "cached.sock"), false)
 	if err != nil {
 		return 1, err
@@ -58,7 +60,9 @@ func rebuildStateRequest(ctx *appcontext.AppContext, req *RequestPkt) (int, erro
 
 	response := &ResponsePkt{}
 	for {
+		log.Printf("2.1")
 		if err := client.dec.Decode(response); err != nil {
+			log.Printf("2.2")
 			if err == io.EOF {
 				break
 			}
@@ -66,8 +70,9 @@ func rebuildStateRequest(ctx *appcontext.AppContext, req *RequestPkt) (int, erro
 				return 1, err
 			}
 			return 1, fmt.Errorf("failed to decode response: %w", err)
-		}
+		} 
 
+		log.Printf("4444")
 		var err error
 		if response.Err != "" {
 			err = fmt.Errorf("%s", response.Err)
@@ -75,11 +80,12 @@ func rebuildStateRequest(ctx *appcontext.AppContext, req *RequestPkt) (int, erro
 
 		return response.ExitCode, err
 	}
-
+	log.Printf("end rebuildStateRequest")
 	return 0, nil
 }
 
 func newClient(ctx *appcontext.AppContext, socketPath string, ignoreVersion bool) (*Client, error) {
+	log.Printf("start cached.newClient")
 	var lockfile *os.File
 	var spawned bool
 
@@ -140,7 +146,7 @@ func newClient(ctx *appcontext.AppContext, socketPath string, ignoreVersion bool
 			// Cached is daemonized, so we can, and need to wait for the return
 			// of the direct child to avoid zombies.
 			// The grand children will get reparented to PID 0 as a daemon and
-			// will be reaped by PID 0 avoiding zonmbies.
+			// will be reaped by PID 0 avoiding zombies.
 			if err := plakar.Run(); err != nil {
 				return nil, fmt.Errorf("failed to start cached: %w", err)
 			}
@@ -167,6 +173,7 @@ func newClient(ctx *appcontext.AppContext, socketPath string, ignoreVersion bool
 }
 
 func (c *Client) handshake(ignoreVersion bool) error {
+	log.Printf("start handshake")
 	ourvers := []byte(utils.GetVersion())
 
 	if err := c.enc.Encode(ourvers); err != nil {
@@ -182,6 +189,7 @@ func (c *Client) handshake(ignoreVersion bool) error {
 		return fmt.Errorf("%w (%v)", ErrWrongVersion, string(cachedvers))
 	}
 
+	log.Printf("end handshake")
 	return nil
 }
 
@@ -207,6 +215,7 @@ func RebuildStateFromStateFile(ctx *appcontext.AppContext, stateID objects.MAC, 
 }
 
 func RebuildStateFromStore(ctx *appcontext.AppContext, repoID uuid.UUID, storeConfig map[string]string, fireAndForget bool) (int, error) {
+	log.Printf("start RebuildStateFromStore: %s", repoID)
 	t0 := time.Now()
 	defer func() {
 		ctx.GetLogger().Trace("cached", "rebuild from store (store=%s): %s", repoID, time.Since(t0))
