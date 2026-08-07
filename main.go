@@ -17,6 +17,10 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/PlakarKorp/integrations/s3/storage"
+	_ "github.com/PlakarKorp/integrations/s3/exporter"
+	_ "github.com/PlakarKorp/integrations/s3/importer"
+
 	"github.com/PlakarKorp/kloset/caching"
 	"github.com/PlakarKorp/kloset/caching/pebble"
 	"github.com/PlakarKorp/kloset/connectors/storage"
