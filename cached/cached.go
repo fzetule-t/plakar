@@ -49,6 +49,7 @@ var (
 func rebuildStateRequest(ctx *appcontext.AppContext, req *RequestPkt) (int, error) {
 	log.Printf("start rebuildStateRequest")
 	start := time.Now()
+
 	client, err := newClient(ctx, filepath.Join(ctx.CacheDir, "cached.sock"), false)
 	if err != nil {
 		return 1, err
@@ -70,15 +71,40 @@ func rebuildStateRequest(ctx *appcontext.AppContext, req *RequestPkt) (int, erro
 			}
 			return 1, fmt.Errorf("failed to decode response: %w", err)
 		}
+
 		var err error
 		if response.Err != "" {
 			err = fmt.Errorf("%s", response.Err)
 		}
 
+		cacheSize, sizeErr := getDirSize(ctx.CacheDir)
+		if sizeErr != nil {
+			log.Printf("end rebuildStateRequest in %s, failed to get cache size: %v", time.Since(start), sizeErr)
+		} else {
+			log.Printf("end rebuildStateRequest in %s, cache size: %d Mib", time.Since(start), cacheSize)
+		}
+
 		return response.ExitCode, err
 	}
+
 	log.Printf("end rebuildStateRequest in %s", time.Since(start))
 	return 0, nil
+}
+
+func getDirSize(path string) (int64, error) {
+	var size int64
+
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return nil
+	})
+
+	return size / (1024 * 1024), err
 }
 
 func newClient(ctx *appcontext.AppContext, socketPath string, ignoreVersion bool) (*Client, error) {
