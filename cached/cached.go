@@ -47,6 +47,7 @@ var (
 )
 
 func rebuildStateRequest(ctx *appcontext.AppContext, req *RequestPkt) (int, error) {
+	log.Printf("start rebuildStateRequest")
 	start := time.Now()
 	client, err := newClient(ctx, filepath.Join(ctx.CacheDir, "cached.sock"), false)
 	if err != nil {
