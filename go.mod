@@ -143,3 +143,6 @@ require (
 	modernc.org/memory v1.12.1 // indirect
 	modernc.org/sqlite v1.58.0 // indirect
 )
+
+// Remplacé lors du build on demand
+replace github.com/PlakarKorp/integrations/s3 => /home/z/w/gitlab/ops/fzetule-t_plakar/integrations/s3
